@@ -53,3 +53,9 @@ USB ID 05ac:1227 identifies an Apple device in DFU mode. It does not by itself i
 ## Scope of this repository
 
 This project currently supports Termux dependency setup, building upstream USB libraries, and Android USB descriptor diagnostics. It does **not** yet implement a complete jailbreak, exploit, ramdisk, tethered boot, or firmware restore. Those steps are deliberately not faked by a shell wrapper.
+
+## Legacy Apple TV 2 alternative: Seas0nPass
+
+For A1378, Seas0nPass is another restore-based jailbreak route. The Apple Wiki records support through Apple TV Software 6.2.1, with 6.2.1 tethered. It is a legacy product (last updated in 2017). Its documented requirements include an x86 computer running Mac OS X 10.6+ or Windows XP+ with .NET Framework 4.0, iTunes, a micro-USB cable, and the aluminum Apple Remote. This is not an Android/Termux workflow.
+
+Reference: https://theapplewiki.com/wiki/Seas0nPass
