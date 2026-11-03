@@ -42,7 +42,7 @@ The current iOS Guide's Blackb0x instructions state:
 
 A tethered jailbreak needs a host-assisted boot after a reboot. An untethered jailbreak survives reboot, but a failed install can still bootloop the device.
 
-**Host limitation:** The current iOS Guide lists an Intel-based Mac running macOS 10.11 or later as the Blackb0x requirement. The original Blackb0x project is an Xcode/macOS application. The 2026 community modernization regulad/Blackb0x-- also documents macOS/Xcode build requirements. This repository does not falsely claim that a Mac-only jailbreak app runs in Termux.
+**Host limitation:** The current iOS Guide lists an Intel-based Mac running macOS 10.11 or later as the Blackb0x requirement. The original Blackb0x project is an Xcode/macOS application. The 2026 community modernization regulad/Blackb0x-- supports Apple Silicon and Intel Macs, but its CMake configuration hard-fails on non-Apple hosts; its maintainer says Linux support was removed because checkm8 did not work there. This repository does not falsely claim that the Mac-only jailbreak chain runs in Termux.
 
 ### Your reported A1378 / 7.2.1 combination
 
