@@ -78,80 +78,9 @@ build_project "libimobiledevice-glue" "https://github.com/libimobiledevice/libim
 say "Building libirecovery"
 build_project "libirecovery" "https://github.com/libimobiledevice/libirecovery.git"
 
-say "Building Android USB descriptor helper"
-cat > "$WORK/atv2-usb-probe.c" <<'C_EOF'
-#include <errno.h>
-#include <inttypes.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <libusb-1.0/libusb.h>
-
-int main(int argc, char **argv) {
-    if (argc != 2) {
-        fprintf(stderr, "Usage: atv2-usb-probe FILE_DESCRIPTOR\n");
-        return 2;
-    }
-
-    char *end = NULL;
-    errno = 0;
-    long rawfd = strtol(argv[1], &end, 10);
-    if (errno || !end || *end || rawfd < 0) {
-        fprintf(stderr, "Invalid USB file descriptor: %s\n", argv[1]);
-        return 2;
-    }
-
-    libusb_context *ctx = NULL;
-    libusb_device_handle *handle = NULL;
-    int rc = libusb_init(&ctx);
-    if (rc != 0) {
-        fprintf(stderr, "libusb_init: %s\n", libusb_error_name(rc));
-        return 3;
-    }
-
-    rc = libusb_wrap_sys_device(ctx, (intptr_t)rawfd, &handle);
-    if (rc != 0) {
-        fprintf(stderr, "Could not use Android-granted USB descriptor: %s\n",
-                libusb_error_name(rc));
-        libusb_exit(ctx);
-        return 4;
-    }
-
-    struct libusb_device_descriptor d;
-    rc = libusb_get_device_descriptor(libusb_get_device(handle), &d);
-    if (rc != 0) {
-        fprintf(stderr, "Could not read USB descriptor: %s\n", libusb_error_name(rc));
-        libusb_close(handle);
-        libusb_exit(ctx);
-        return 5;
-    }
-
-    printf("Vendor ID:       %04x\n", d.idVendor);
-    printf("Product ID:      %04x\n", d.idProduct);
-    printf("USB revision:    %04x\n", d.bcdUSB);
-    printf("Device revision: %04x\n", d.bcdDevice);
-    printf("Device class:    %02x\n", d.bDeviceClass);
-    printf("Configurations:  %u\n", d.bNumConfigurations);
-
-    if (d.idVendor == 0x05ac && d.idProduct == 0x1227) {
-        puts("Apple USB mode:  DFU (USB PID 1227)");
-        puts("Note: DFU mode does not identify the exact Apple product or firmware.");
-    } else if (d.idVendor == 0x05ac &&
-               d.idProduct >= 0x1280 && d.idProduct <= 0x1283) {
-        puts("Apple USB mode:  Recovery (USB PID 1280-1283)");
-    } else if (d.idVendor == 0x05ac) {
-        puts("Apple USB mode:  Apple device; mode not classified by this probe.");
-    } else {
-        puts("Apple USB mode:  Not identified as an Apple VID (05ac) device.");
-    }
-
-    libusb_close(handle);
-    libusb_exit(ctx);
-    return 0;
-}
-C_EOF
-
-clang "$WORK/atv2-usb-probe.c" -O2 -Wall -Wextra -o "$PREFIX/bin/atv2-usb-probe" -lusb-1.0
+say "Building Android USB descriptor and DFU board-identity helper"
+clang "$SCRIPT_DIR/src/atv2-usb-probe.c" -O2 -Wall -Wextra \
+  -o "$PREFIX/bin/atv2-usb-probe" $(pkg-config --cflags --libs libusb-1.0)
 
 say "Installing atv2 command"
 cat > "$PREFIX/bin/atv2" <<'SH_EOF'
