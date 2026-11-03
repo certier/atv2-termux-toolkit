@@ -12,7 +12,7 @@ git clone https://github.com/certier/atv2-termux-toolkit.git && cd atv2-termux-t
 
 The installer installs the required packages, builds upstream libimobiledevice-glue and libirecovery for ARM64 Termux, builds the Android USB descriptor helper, and installs the atv2 command.
 
-The Termux:API package is installed by pkg, but Android also requires the matching Termux:API add-on app. Install the add-on from the same trusted distribution as Termux and grant USB permission when Android prompts.
+The Termux:API package is installed by pkg, but Android also requires the matching Termux:API add-on app. Install the add-on from the same trusted distribution as Termux and grant USB permission when Android prompts. The setup compiles a small C probe from `src/atv2-usb-probe.c`.
 
 ## Commands
 
@@ -62,13 +62,13 @@ It will stop on this mismatch rather than suggest a risky flash.
 
 Android does not give Termux unrestricted access to USB devices. Termux:API's `termux-usb -r -e COMMAND DEVICE` requests permission and invokes the helper with an already-authorized file descriptor. The C helper wraps that descriptor using `libusb_wrap_sys_device()` and reads only the USB device descriptor.
 
-Apple VID/PID 05ac:1227 is DFU mode. Recovery-mode IDs include 05ac:1280 through 05ac:1283. These IDs say which USB mode is active, not which Apple TV model or software is installed.
+Apple VID/PID 05ac:1227 is DFU mode. Recovery-mode IDs include 05ac:1280 through 05ac:1283. These IDs say which USB mode is active, not which Apple TV model or software is installed. In DFU mode the helper also attempts the read-only USB serial descriptor. If it contains Apple's `CPID` and `BDID` fields, the helper matches the known Apple TV board pairs: `8930:10` = AppleTV2,1 (A1378); `8942:08` = AppleTV3,1 (A1427); `8947:00` = AppleTV3,2 (A1469). This metadata is optional and may be unavailable. For privacy, the helper does not print the full serial descriptor or ECID.
 
 The upstream irecovery binary is built as a component, but its normal device-discovery path may not work with Android's per-device descriptor permissions. Building it does not itself add jailbreak capability.
 
 ## Safety and scope
 
-- This repository currently builds USB libraries, provides read-only USB diagnostics, and checks documented model/software compatibility.
+- This repository currently builds USB libraries, provides read-only USB diagnostics (including optional DFU CPID/BDID board identification), and checks documented model/software compatibility.
 - It does not yet implement the Blackb0x exploit chain, ramdisk, tethered boot, jailbreak installation, or firmware restore from Android.
 - No restore, downgrade, DFU upload, iBoot command, or firmware-writing operation is included.
 - Do not run arbitrary `irecovery -c`, `irecovery -f`, or restore commands copied from the internet.
