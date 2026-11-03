@@ -40,7 +40,7 @@ Do not attempt a restore or downgrade to force this combination. Verify the A-nu
 
 ## What USB DFU tells us
 
-USB ID 05ac:1227 identifies an Apple device in DFU mode. It does not by itself identify A1378 vs A1427/A1469, nor tell us which firmware is installed. USB paths under /dev/bus/usb/ can change after reconnecting.
+USB ID 05ac:1227 identifies an Apple device in DFU mode. It does not by itself identify A1378 vs A1427/A1469, nor tell us which firmware is installed. The Termux helper now attempts to read the same USB iSerialNumber string that upstream libirecovery parses. When present, CPID + BDID identify these Apple TV board pairs: 8930:10 = AppleTV2,1 (A1378); 8942:08 = AppleTV3,1 (A1427); 8947:00 = AppleTV3,2 (A1469). Some DFU devices expose no readable serial descriptor; in that case the result remains unknown. The helper does not print ECID or the full serial string. USB paths under /dev/bus/usb/ can change after reconnecting.
 
 ## Source references
 
