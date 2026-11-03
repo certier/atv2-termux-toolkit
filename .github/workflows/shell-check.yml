@@ -12,4 +12,14 @@ jobs:
       - name: Check shell syntax
         run: |
           bash -n setup.sh
+          bash -n scripts/atv2-route.sh
           echo "Shell syntax OK"
+      - name: Exercise compatibility routing
+        run: |
+          bash scripts/atv2-route.sh A1378 5.3
+          bash scripts/atv2-route.sh A1378 6.2.1
+          bash scripts/atv2-route.sh A1469 7.2.1
+          if bash scripts/atv2-route.sh A1378 7.2.1; then
+            echo "Mismatch was not rejected" >&2
+            exit 1
+          fi
