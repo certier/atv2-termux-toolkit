@@ -62,7 +62,7 @@ build_project() {
   # Upstream uses m4_esyscmd(./git-version-gen ...) inside AC_INIT. Some
   # Termux Autoconf/m4 combinations expand this to an empty PACKAGE_VERSION.
   # Pin the local build copy to the version obtained from its actual Git checkout.
-  sed "s|m4_esyscmd(./git-version-gen \\$RELEASE_VERSION)|$version|g" "$dir/configure.ac" > "$dir/configure.ac.tmp"
+  sed "s|m4_esyscmd(./git-version-gen \$RELEASE_VERSION)|$version|g" "$dir/configure.ac" > "$dir/configure.ac.tmp"
   mv "$dir/configure.ac.tmp" "$dir/configure.ac"
 
   ( cd "$dir"
@@ -89,7 +89,7 @@ cat > "$WORK/atv2-usb-probe.c" <<'C_EOF'
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        fprintf(stderr, "Usage: atv2-usb-probe FILE_DESCRIPTOR\\n");
+        fprintf(stderr, "Usage: atv2-usb-probe FILE_DESCRIPTOR\n");
         return 2;
     }
 
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
     errno = 0;
     long rawfd = strtol(argv[1], &end, 10);
     if (errno || !end || *end || rawfd < 0) {
-        fprintf(stderr, "Invalid USB file descriptor: %s\\n", argv[1]);
+        fprintf(stderr, "Invalid USB file descriptor: %s\n", argv[1]);
         return 2;
     }
 
@@ -105,13 +105,13 @@ int main(int argc, char **argv) {
     libusb_device_handle *handle = NULL;
     int rc = libusb_init(&ctx);
     if (rc != 0) {
-        fprintf(stderr, "libusb_init: %s\\n", libusb_error_name(rc));
+        fprintf(stderr, "libusb_init: %s\n", libusb_error_name(rc));
         return 3;
     }
 
     rc = libusb_wrap_sys_device(ctx, (intptr_t)rawfd, &handle);
     if (rc != 0) {
-        fprintf(stderr, "Could not use Android-granted USB descriptor: %s\\n",
+        fprintf(stderr, "Could not use Android-granted USB descriptor: %s\n",
                 libusb_error_name(rc));
         libusb_exit(ctx);
         return 4;
@@ -120,18 +120,18 @@ int main(int argc, char **argv) {
     struct libusb_device_descriptor d;
     rc = libusb_get_device_descriptor(libusb_get_device(handle), &d);
     if (rc != 0) {
-        fprintf(stderr, "Could not read USB descriptor: %s\\n", libusb_error_name(rc));
+        fprintf(stderr, "Could not read USB descriptor: %s\n", libusb_error_name(rc));
         libusb_close(handle);
         libusb_exit(ctx);
         return 5;
     }
 
-    printf("Vendor ID:       %04x\\n", d.idVendor);
-    printf("Product ID:      %04x\\n", d.idProduct);
-    printf("USB revision:    %04x\\n", d.bcdUSB);
-    printf("Device revision: %04x\\n", d.bcdDevice);
-    printf("Device class:    %02x\\n", d.bDeviceClass);
-    printf("Configurations:  %u\\n", d.bNumConfigurations);
+    printf("Vendor ID:       %04x\n", d.idVendor);
+    printf("Product ID:      %04x\n", d.idProduct);
+    printf("USB revision:    %04x\n", d.bcdUSB);
+    printf("Device revision: %04x\n", d.bcdDevice);
+    printf("Device class:    %02x\n", d.bDeviceClass);
+    printf("Configurations:  %u\n", d.bNumConfigurations);
 
     if (d.idVendor == 0x05ac && d.idProduct == 0x1227) {
         puts("Apple USB mode:  DFU (USB PID 1227)");
@@ -188,18 +188,18 @@ doctor() {
   echo "PREFIX: $PREFIX"
   for cmd in clang make git pkg-config termux-usb irecovery atv2-usb-probe atv2-route; do
     if command -v "$cmd" >/dev/null 2>&1; then
-      printf 'OK   %-18s %s\\n' "$cmd" "$(command -v "$cmd")"
+      printf 'OK   %-18s %s\n' "$cmd" "$(command -v "$cmd")"
     else
-      printf 'MISS %-18s\\n' "$cmd"
+      printf 'MISS %-18s\n' "$cmd"
     fi
   done
   echo
   echo "== pkg-config dependencies =="
   for pkg in libusb-1.0 libimobiledevice-glue-1.0 libirecovery-1.0; do
     if pkg-config --exists "$pkg" 2>/dev/null; then
-      printf 'OK   %-30s %s\\n' "$pkg" "$(pkg-config --modversion "$pkg")"
+      printf 'OK   %-30s %s\n' "$pkg" "$(pkg-config --modversion "$pkg")"
     else
-      printf 'MISS %s\\n' "$pkg"
+      printf 'MISS %s\n' "$pkg"
     fi
   done
   echo
