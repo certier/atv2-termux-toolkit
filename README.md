@@ -1,100 +1,84 @@
 # ATV2 Termux Toolkit
 
-A Termux-first build and diagnostic toolkit for an Apple TV 2 (A1378) connected to an Android phone over USB-OTG.
+A Termux-first toolkit for building Apple USB utilities and diagnosing an Apple TV connected to Android over USB-OTG. It also checks published jailbreak compatibility so the wrong firmware route is not selected.
 
-**Scope:** build the upstream `libimobiledevice-glue` and `libirecovery` tools for ARM64 Termux, and provide a Termux USB file-descriptor probe. The toolkit is diagnostic only: it does not jailbreak, restore, downgrade, flash, or send commands to the Apple TV.
+## One-command setup
 
-## One-time setup
-
-Install Termux from a current trusted Termux distribution and open it. The `termux-usb` command also requires the Termux:API package and the matching Termux:API Android add-on app.
-
-Paste this single command:
+In Termux, run:
 
 ```bash
 git clone https://github.com/certier/atv2-termux-toolkit.git && cd atv2-termux-toolkit && bash setup.sh
 ```
 
-The installer:
-1. Installs the required Termux build packages.
-2. Clones the upstream libimobiledevice projects into a temporary build folder.
-3. Works around the upstream Autoconf version-expansion issue by replacing the generated version expression with the exact version reported by Git in the local build copy.
-4. Builds and installs `libimobiledevice-glue` and `libirecovery` under Termux's `$PREFIX`.
-5. Builds `atv2-usb-probe`, a small helper that uses the file descriptor granted by `termux-usb`.
-6. Installs the `atv2` command.
+The installer installs the required packages, builds upstream libimobiledevice-glue and libirecovery for ARM64 Termux, builds the Android USB descriptor helper, and installs the atv2 command.
 
-When setup finishes, use:
-
-```bash
-atv2 doctor
-atv2 probe
-```
-
-Or run both safe checks together:
-
-```bash
-atv2 all
-```
+The Termux:API package is installed by pkg, but Android also requires the matching Termux:API add-on app. Install the add-on from the same trusted distribution as Termux and grant USB permission when Android prompts.
 
 ## Commands
 
 | Command | Purpose |
 |---|---|
 | `atv2 help` | Show help |
-| `atv2 doctor` | Check Termux, architecture, build tools, libraries, and USB visibility |
-| `atv2 probe` | Ask Android for permission and read the connected USB descriptor |
-| `atv2 probe /dev/bus/usb/001/002` | Probe a specific path shown by `termux-usb -l` |
+| `atv2 doctor` | Check Termux, libraries, tools, and visible USB devices |
+| `atv2 probe` | Read the USB descriptor through Android's granted file descriptor |
+| `atv2 probe /dev/bus/usb/001/002` | Probe the path shown by the latest termux-usb -l |
+| `atv2 route A1378 6.2.1` | Check the published jailbreak route for model and software |
+| `atv2 route A1469 7.2.1` | Check the published jailbreak route for model and software |
 | `atv2 all` | Run doctor and then the safe USB probe |
 
-USB device paths can change whenever the device reconnects. Always use a path from the latest `termux-usb -l` output.
+Always copy the current device path from termux-usb -l. Android can renumber USB paths after reconnecting.
+
+## Published jailbreak routes
+
+The current iOS Guide's Blackb0x instructions state:
+
+| Apple TV model | Apple TV Software | Published route |
+|---|---:|---|
+| A1378 (Apple TV 2) | 5.3 | Blackb0x untethered |
+| A1378 (Apple TV 2) | 6.2.1 | Blackb0x tethered |
+| A1427 (Apple TV 3,1) | 7.2.1–7.9 | Blackb0x untethered, with Arduino/checkm8-A5 DFU preparation |
+| A1469 (Apple TV 3,2) | 7.2.1–7.9 | Blackb0x untethered |
+| A1427/A1469 (Apple TV 3) | 6.0–6.2 | Blackb0x tethered |
+
+A tethered jailbreak needs a host-assisted boot after a reboot. An untethered jailbreak survives reboot, but a failed install can still bootloop the device.
+
+**Host limitation:** The current iOS Guide lists an Intel-based Mac running macOS 10.11 or later as the Blackb0x requirement. The original Blackb0x project is an Xcode/macOS application. The 2026 community modernization regulad/Blackb0x-- also documents macOS/Xcode build requirements. This repository does not falsely claim that a Mac-only jailbreak app runs in Termux.
+
+### Your reported A1378 / 7.2.1 combination
+
+This is not a supported match in the published compatibility table. A1378 is Apple TV 2; Apple TV Software 7.2.1 is in the Apple TV 3 jailbreak route. A1378's listed Blackb0x routes are 5.3 and 6.2.1.
+
+Do not restore or downgrade to force the mismatch. Verify the model number printed on the enclosure and the software version in Settings > General > About. A USB ID of 05ac:1227 confirms Apple DFU mode only; it does not identify the Apple TV generation or firmware.
+
+The compatibility checker is:
+
+```bash
+atv2 route A1378 7.2.1
+```
+
+It will stop on this mismatch rather than suggest a risky flash.
 
 ## Android USB behavior
 
-On Android, Termux does not automatically receive unrestricted access to `/dev/bus/usb`. The Termux:API `termux-usb -r -e COMMAND DEVICE` flow requests permission and invokes the command with a file descriptor as its argument. The included C helper wraps that already-authorized descriptor with `libusb_wrap_sys_device()` and reads the USB device descriptor.
+Android does not give Termux unrestricted access to USB devices. Termux:API's `termux-usb -r -e COMMAND DEVICE` requests permission and invokes the helper with an already-authorized file descriptor. The C helper wraps that descriptor using `libusb_wrap_sys_device()` and reads only the USB device descriptor.
 
-The helper reports the USB vendor ID, product ID, device revision, and USB class fields. For Apple devices, product ID `0x1227` indicates Apple's DFU USB mode; product IDs `0x1280` through `0x1283` are recovery-mode IDs used by libirecovery. These IDs identify the current USB mode, not the Apple TV model or installed firmware.
+Apple VID/PID 05ac:1227 is DFU mode. Recovery-mode IDs include 05ac:1280 through 05ac:1283. These IDs say which USB mode is active, not which Apple TV model or software is installed.
 
-The upstream `irecovery` executable is built and installed as a toolchain component. Its normal USB discovery path may not work under Android's permission model because it does not consume the file descriptor supplied by `termux-usb`. The toolkit therefore does not claim that building `irecovery` makes it able to control the Apple TV from Android.
+The upstream irecovery binary is built as a component, but its normal device-discovery path may not work with Android's per-device descriptor permissions. Building it does not itself add jailbreak capability.
 
-## Important model / firmware note
+## Safety and scope
 
-Apple identifies **A1378 as Apple TV (2nd generation)** and identifies **A1427/A1469 as Apple TV (3rd generation)**: [Apple's model identification guide](https://support.apple.com/en-us/101605).
+- This repository currently builds USB libraries, provides read-only USB diagnostics, and checks documented model/software compatibility.
+- It does not yet implement the Blackb0x exploit chain, ramdisk, tethered boot, jailbreak installation, or firmware restore from Android.
+- No restore, downgrade, DFU upload, iBoot command, or firmware-writing operation is included.
+- Do not run arbitrary `irecovery -c`, `irecovery -f`, or restore commands copied from the internet.
 
-Third-party firmware catalogs list Apple TV 2 (A1378 / AppleTV2,1) with a maximum software version of **6.2.1**, while software **7.2.1** is associated with Apple TV 3 (AppleTV3,1 / AppleTV3,2). See [EveryMac's model/specification index](https://everymac.com/systems/apple/apple-tv/index-appletv.html) and [The Apple Wiki's 7.x firmware table](https://theapplewiki.com/wiki/Firmware_Keys/7.x).
+## References
 
-If a device is labelled A1378 but someone reports software 7.2.1, treat that as an unresolved mismatch. This toolkit deliberately does not infer the firmware version from a USB PID.
-
-## Safety
-
-- No restore, downgrade, exploit, DFU upload, boot command, iBoot command, or firmware-writing command is included in `setup.sh` or `atv2`.
-- Do not run random `irecovery -c`, `irecovery -f`, or restore commands copied from the internet.
-- A USB DFU identifier is not proof that a jailbreak is installed or that a firmware restore is safe.
-- Keep a known-good power supply connected to the Apple TV while diagnosing USB.
-- HDMI is not needed for the USB descriptor probe, but without a display the toolkit cannot verify what the Apple TV shows after boot.
-
-## Troubleshooting
-
-**`termux-usb -l` returns `[]`**
-- Reconnect the OTG adapter and Micro-USB cable.
-- Confirm the Apple TV is powered.
-- Check whether Android displays a USB permission/connection notification.
-- Run `termux-usb -l` again; do not reuse an old device path.
-
-**`termux-usb` is not found**
-- Install the Termux package: `pkg install termux-api`.
-- Install/open the matching Termux:API Android add-on from the same distribution source as Termux.
-- Reopen Termux and retry.
-
-**The installer reports a missing package**
-- Run `pkg update` and `termux-change-repo`, select a current mirror, then rerun `bash setup.sh`.
-
-**A source build fails**
-- The installer keeps a log under `$HOME/.cache/atv2-termux-toolkit/`.
-- Share the final error and the log path; do not try arbitrary configure flags or edit upstream files by hand.
-
-## Upstream projects
-
-- [libimobiledevice-glue](https://github.com/libimobiledevice/libimobiledevice-glue)
-- [libirecovery](https://github.com/libimobiledevice/libirecovery)
-- [Termux:API](https://github.com/termux/termux-api)
-
-The upstream projects retain their own licenses. This repository contains original glue scripts and a small USB descriptor helper.
+- Apple model identification: https://support.apple.com/en-us/101605
+- Blackb0x installation and compatibility guide: https://ios.cfw.guide/installing-blackb0x/
+- Apple TV 3 firmware selection: https://ios.cfw.guide/get-started/Apple-TV-%283rd-generation%29.html
+- Original Blackb0x source: https://github.com/NSSpiral/Blackb0x
+- Modernized community fork: https://github.com/regulad/Blackb0x--
+- Upstream libirecovery: https://github.com/libimobiledevice/libirecovery
+- Termux:API: https://github.com/termux/termux-api
