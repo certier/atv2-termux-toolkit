@@ -27,7 +27,7 @@ A tethered jailbreak requires the host-assisted boot process again after the App
 
 The current iOS Guide lists an Intel-based Mac running macOS 10.11 or later as the Blackb0x requirement. The Blackb0x source project is an Xcode/macOS application. This repository's Termux setup does not turn that macOS application into an Android executable.
 
-A separate 2026 community fork, regulad/Blackb0x--, is a substantial modernized project, but it also documents macOS/Xcode toolchain requirements. It is not an established Termux-only path.
+A separate 2026 community fork, regulad/Blackb0x--, is a substantial modernized project. Its current CMake configuration explicitly rejects non-Apple hosts, and its maintainer documents that Linux support was removed because the checkm8 sequence did not work there. This is a direct blocker to treating the fork as a Linux/Termux jailbreak path.
 
 ## The reported A1378 / 7.2.1 combination
 
