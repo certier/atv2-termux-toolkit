@@ -1,6 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -Eeuo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_URL="https://github.com/certier/atv2-termux-toolkit.git"
 WORK="$HOME/.cache/atv2-termux-toolkit"
 LOGDIR="$WORK/logs"
@@ -13,7 +14,7 @@ trap 'code=$?; echo; echo "[ERROR] Setup failed at line $LINENO (exit $code). Lo
 say() { printf '\n\033[1;36m==> %s\033[0m\n' "$*"; }
 need_cmd() { command -v "$1" >/dev/null 2>&1 || { echo "Missing command: $1"; return 1; }; }
 
-echo "ATV2 Termux Toolkit — safe build and USB diagnostics"
+echo "ATV2 Termux Toolkit — build and USB diagnostics"
 echo "Log: $LOG"
 if [[ "$(uname -m)" != "aarch64" && "$(uname -m)" != "arm64" ]]; then
   echo "Warning: this setup is intended for 64-bit ARM Android (aarch64). Detected: $(uname -m)"
@@ -29,6 +30,9 @@ need_cmd git
 need_cmd clang
 need_cmd pkg-config
 need_cmd termux-usb
+
+mkdir -p "$PREFIX/bin"
+install -m 755 "$SCRIPT_DIR/scripts/atv2-route.sh" "$PREFIX/bin/atv2-route"
 
 export PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig:$PREFIX/share/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 export CFLAGS="${CFLAGS:-} -O2"
@@ -58,7 +62,7 @@ build_project() {
   # Upstream uses m4_esyscmd(./git-version-gen ...) inside AC_INIT. Some
   # Termux Autoconf/m4 combinations expand this to an empty PACKAGE_VERSION.
   # Pin the local build copy to the version obtained from its actual Git checkout.
-  sed "s|m4_esyscmd(./git-version-gen \$RELEASE_VERSION)|$version|g" "$dir/configure.ac" > "$dir/configure.ac.tmp"
+  sed "s|m4_esyscmd(./git-version-gen \\$RELEASE_VERSION)|$version|g" "$dir/configure.ac" > "$dir/configure.ac.tmp"
   mv "$dir/configure.ac.tmp" "$dir/configure.ac"
 
   ( cd "$dir"
@@ -85,7 +89,7 @@ cat > "$WORK/atv2-usb-probe.c" <<'C_EOF'
 
 int main(int argc, char **argv) {
     if (argc != 2) {
-        fprintf(stderr, "Usage: atv2-usb-probe FILE_DESCRIPTOR\n");
+        fprintf(stderr, "Usage: atv2-usb-probe FILE_DESCRIPTOR\\n");
         return 2;
     }
 
@@ -93,7 +97,7 @@ int main(int argc, char **argv) {
     errno = 0;
     long rawfd = strtol(argv[1], &end, 10);
     if (errno || !end || *end || rawfd < 0) {
-        fprintf(stderr, "Invalid USB file descriptor: %s\n", argv[1]);
+        fprintf(stderr, "Invalid USB file descriptor: %s\\n", argv[1]);
         return 2;
     }
 
@@ -101,13 +105,13 @@ int main(int argc, char **argv) {
     libusb_device_handle *handle = NULL;
     int rc = libusb_init(&ctx);
     if (rc != 0) {
-        fprintf(stderr, "libusb_init: %s\n", libusb_error_name(rc));
+        fprintf(stderr, "libusb_init: %s\\n", libusb_error_name(rc));
         return 3;
     }
 
     rc = libusb_wrap_sys_device(ctx, (intptr_t)rawfd, &handle);
     if (rc != 0) {
-        fprintf(stderr, "Could not use Android-granted USB descriptor: %s\n",
+        fprintf(stderr, "Could not use Android-granted USB descriptor: %s\\n",
                 libusb_error_name(rc));
         libusb_exit(ctx);
         return 4;
@@ -116,18 +120,18 @@ int main(int argc, char **argv) {
     struct libusb_device_descriptor d;
     rc = libusb_get_device_descriptor(libusb_get_device(handle), &d);
     if (rc != 0) {
-        fprintf(stderr, "Could not read USB descriptor: %s\n", libusb_error_name(rc));
+        fprintf(stderr, "Could not read USB descriptor: %s\\n", libusb_error_name(rc));
         libusb_close(handle);
         libusb_exit(ctx);
         return 5;
     }
 
-    printf("Vendor ID:       %04x\n", d.idVendor);
-    printf("Product ID:      %04x\n", d.idProduct);
-    printf("USB revision:    %04x\n", d.bcdUSB);
-    printf("Device revision: %04x\n", d.bcdDevice);
-    printf("Device class:    %02x\n", d.bDeviceClass);
-    printf("Configurations:  %u\n", d.bNumConfigurations);
+    printf("Vendor ID:       %04x\\n", d.idVendor);
+    printf("Product ID:      %04x\\n", d.idProduct);
+    printf("USB revision:    %04x\\n", d.bcdUSB);
+    printf("Device revision: %04x\\n", d.bcdDevice);
+    printf("Device class:    %02x\\n", d.bDeviceClass);
+    printf("Configurations:  %u\\n", d.bNumConfigurations);
 
     if (d.idVendor == 0x05ac && d.idProduct == 0x1227) {
         puts("Apple USB mode:  DFU (USB PID 1227)");
@@ -158,21 +162,23 @@ probe="$PREFIX/bin/atv2-usb-probe"
 
 usage() {
   cat <<'HELP'
-ATV2 Termux Toolkit — safe diagnostics only
+ATV2 Termux Toolkit
 
 Usage:
   atv2 help
   atv2 doctor
   atv2 probe [USB_DEVICE_PATH]
+  atv2 route MODEL FIRMWARE
   atv2 all
 
 Examples:
-  termux-usb -l
+  atv2 doctor
   atv2 probe
-  atv2 probe /dev/bus/usb/001/002
+  atv2 route A1378 6.2.1
+  atv2 route A1469 7.2.1
 
-This tool reads USB descriptors only. It does not jailbreak, restore,
-downgrade, flash firmware, upload payloads, or send iBoot commands.
+The toolkit installs build/USB diagnostics and a published-compatibility
+checker. It does not yet execute the Blackb0x jailbreak.
 HELP
 }
 
@@ -180,20 +186,20 @@ doctor() {
   echo "== Termux environment =="
   echo "Architecture: $(uname -m)"
   echo "PREFIX: $PREFIX"
-  for cmd in clang make git pkg-config termux-usb; do
+  for cmd in clang make git pkg-config termux-usb irecovery atv2-usb-probe atv2-route; do
     if command -v "$cmd" >/dev/null 2>&1; then
-      printf 'OK   %-12s %s\n' "$cmd" "$(command -v "$cmd")"
+      printf 'OK   %-18s %s\\n' "$cmd" "$(command -v "$cmd")"
     else
-      printf 'MISS %-12s\n' "$cmd"
+      printf 'MISS %-18s\\n' "$cmd"
     fi
   done
   echo
   echo "== pkg-config dependencies =="
   for pkg in libusb-1.0 libimobiledevice-glue-1.0 libirecovery-1.0; do
     if pkg-config --exists "$pkg" 2>/dev/null; then
-      printf 'OK   %-30s %s\n' "$pkg" "$(pkg-config --modversion "$pkg")"
+      printf 'OK   %-30s %s\\n' "$pkg" "$(pkg-config --modversion "$pkg")"
     else
-      printf 'MISS %s\n' "$pkg"
+      printf 'MISS %s\\n' "$pkg"
     fi
   done
   echo
@@ -203,7 +209,7 @@ doctor() {
   echo "Note: Android permission is granted per device through termux-usb."
 }
 
-probe() {
+probe_device() {
   local device="${1:-}"
   if ! command -v termux-usb >/dev/null 2>&1; then
     echo "termux-usb not found. Install package termux-api and the matching Android add-on."
@@ -231,8 +237,9 @@ probe() {
 case "${1:-help}" in
   help|-h|--help) usage ;;
   doctor) doctor ;;
-  probe) shift; probe "${1:-}" ;;
-  all) doctor; echo; probe "${2:-}" ;;
+  probe) shift; probe_device "${1:-}" ;;
+  route) shift; "$PREFIX/bin/atv2-route" "${1:-}" "${2:-}" ;;
+  all) doctor; echo; probe_device "${2:-}" ;;
   *) echo "Unknown command: $1"; usage; exit 2 ;;
 esac
 SH_EOF
@@ -240,6 +247,7 @@ chmod 755 "$PREFIX/bin/atv2"
 
 say "Setup completed"
 echo "Run: atv2 doctor"
+echo "Check the published jailbreak route: atv2 route A1378 6.2.1"
 echo "Then connect the Apple TV by USB-OTG and run: atv2 probe"
 echo "Build log: $LOG"
 echo "No firmware or boot commands were sent to the Apple TV."
