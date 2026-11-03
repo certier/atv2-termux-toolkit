@@ -1,19 +1,28 @@
-name: Shell checks
+name: Shell and probe checks
 
 on:
   push:
   pull_request:
 
 jobs:
-  shellcheck:
+  checks:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Install libusb development headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang pkg-config libusb-1.0-0-dev
       - name: Check shell syntax
         run: |
           bash -n setup.sh
           bash -n scripts/atv2-route.sh
-          echo "Shell syntax OK"
+      - name: Compile the USB and DFU metadata probe
+        run: |
+          clang -std=c11 -Wall -Wextra -Werror src/atv2-usb-probe.c \
+            -o /tmp/atv2-usb-probe $(pkg-config --cflags --libs libusb-1.0)
+          /tmp/atv2-usb-probe 2>/tmp/probe-usage.txt || test "$?" -eq 2
+          grep -q "Usage: atv2-usb-probe FILE_DESCRIPTOR" /tmp/probe-usage.txt
       - name: Exercise compatibility routing
         run: |
           bash scripts/atv2-route.sh A1378 5.3
